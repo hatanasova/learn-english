@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Научи англиски!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #game-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        #question {
+            font-size: 24px;
+            margin-bottom: 20px;
+            background-color: #ffe6a1;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .option-btn, #start-btn, #start-over-btn, #share-btn {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .option-btn:hover, #start-btn:hover, #start-over-btn:hover, #share-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .option-btn.correct {
+            background-color: #2ecc71;
+        }
+
+        .option-btn.incorrect {
+            background-color: #e74c3c;
+        }
+
+        #score, #goal, #level {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        #timer {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        #feedback {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+            height: 24px;
+        }
+
+        #game-content, #end-game-content {
+            display: none;
+        }
+
+        #end-game-message {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 22px;
+        }
+
+        #personal-records {
+            margin-top: 20px;
+            font-size: 16px;
+            text-align: left;
+        }
+
+        #personal-records h3 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .record-item {
+            margin-bottom: 5px;
+        }
+
+        /* Confetti styles remain the same */
+        .confetti-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f2d74e;
+            animation: confettiFall 5s linear infinite;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-10px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(500px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="game-container">
+    <h1>Научи англиски!</h1>
+    <button id="start-btn">Започни игра</button>
+    <div id="game-content">
+        <div id="level">Ниво: 1</div>
+        <div id="timer">60</div>
+        <div id="question"></div>
+        <div id="options"></div>
+        <div id="feedback"></div>
+        <div id="score">Поени: 0</div>
+        <div id="goal">Цел: 10 поени</div>
+    </div>
+    <div id="end-game-content">
+        <div id="end-game-message"></div>
+        <div id="personal-records">
+            <h3>Лични рекорди:</h3>
+            <div id="records-list"></div>
+        </div>
+        <button id="start-over-btn">Играј повторно</button>
+        <button id="share-btn">Сподели резултат</button>
+    </div>
+</div>
+
+<script>
+	const questions = [
+		{q: "Јас", a: "I"},
+		{q: "Ти", a: "You"},
+		{q: "Тој", a: "He"},
+		{q: "Таа", a: "She"},
+		{q: "Тоа", a: "It"},
+		{q: "Ние", a: "We"},
+		{q: "Вие", a: "You"},
+		{q: "Тие", a: "They"},
+		{q: "Јас сум", a: "I am"},
+		{q: "Ти си", a: "You are"},
+		{q: "Тој е", a: "He is"},
+		{q: "Таа е", a: "She is"},
+		{q: "Тоа е", a: "It is"},
+		{q: "Ние сме", a: "We are"},
+		{q: "Вие сте", a: "You are"},
+		{q: "Тие се", a: "They are"}
+	];
+
+	let currentQuestion;
+	let score = 0;
+	let timeLeft = 60;
+	let level = 1;
+	let goalScore = 10;
+	let timerInterval;
+	let personalRecords = [];
+
+	const startBtn = document.getElementById('start-btn');
+	const gameContent = document.getElementById('game-content');
+	const endGameContent = document.getElementById('end-game-content');
+	const startOverBtn = document.getElementById('start-over-btn');
+	const shareBtn = document.getElementById('share-btn');
+
+	startBtn.addEventListener('click', startGame);
+	startOverBtn.addEventListener('click', startOver);
+	shareBtn.addEventListener('click', shareResult);
+
+	function startGame() {
+		startBtn.style.display = 'none';
+		gameContent.style.display = 'block';
+		endGameContent.style.display = 'none';
+		resetGame();
+	}
+
+	function startOver() {
+		endGameContent.style.display = 'none';
+		gameContent.style.display = 'block';
+		resetGame();
+	}
+
+	function shuffleArray(array) {
+		for (let i = array.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[array[i], array[j]] = [array[j], array[i]];
+		}
+	}
+
+	function getRandomQuestion() {
+		return questions[Math.floor(Math.random() * questions.length)];
+	}
+
+	function displayQuestion() {
+		currentQuestion = getRandomQuestion();
+		document.getElementById('question').textContent = currentQuestion.q;
+
+		const options = [currentQuestion.a];
+		while (options.length < 4) {
+			const randomAnswer = getRandomQuestion().a;
+			if (!options.includes(randomAnswer)) {
+				options.push(randomAnswer);
+			}
+		}
+		shuffleArray(options);
+
+		const optionsContainer = document.getElementById('options');
+		optionsContainer.innerHTML = '';
+		options.forEach(option => {
+			const button = document.createElement('button');
+			button.textContent = option;
+			button.className = 'option-btn';
+			button.onclick = () => checkAnswer(button);
+			optionsContainer.appendChild(button);
+		});
+	}
+
+	function checkAnswer(selectedButton) {
+		const buttons = document.querySelectorAll('.option-btn');
+		buttons.forEach(button => button.disabled = true);
+
+		if (selectedButton.textContent === currentQuestion.a) {
+			selectedButton.classList.add('correct');
+			score++;
+			document.getElementById('feedback').textContent = 'Точно!';
+			document.getElementById('feedback').style.color = 'green';
+			document.getElementById('score').textContent = `Поени: ${score}`;
+
+			if (score >= goalScore) {
+				createConfetti();
+				setTimeout(() => {
+					levelUp();
+					displayQuestion();
+				}, 5000); // Increased delay to 5 seconds
+				return;
+			}
+		} else {
+			selectedButton.classList.add('incorrect');
+			document.getElementById('feedback').textContent = 'Неточно!';
+			document.getElementById('feedback').style.color = 'red';
+			buttons.forEach(button => {
+				if (button.textContent === currentQuestion.a) {
+					button.classList.add('correct');
+				}
+			});
+		}
+
+		setTimeout(() => {
+			document.getElementById('feedback').textContent = '';
+			displayQuestion();
+		}, 1500);
+	}
+
+	function updateTimer() {
+		timeLeft--;
+		document.getElementById('timer').textContent = timeLeft;
+		if (timeLeft === 0) {
+			endGame();
+		}
+	}
+
+	function endGame() {
+		clearInterval(timerInterval);
+		gameContent.style.display = 'none';
+		endGameContent.style.display = 'block';
+		document.getElementById('end-game-message').innerHTML = `Играта заврши! Ти достигна ниво <span class="highlight">${level}</span> со <span class="highlight">${score}</span> поени.`;
+
+		updatePersonalRecords();
+		displayPersonalRecords();
+	}
+
+	function resetGame() {
+		score = 0;
+		level = 1;
+		goalScore = 10;
+		timeLeft = 60;
+		document.getElementById('score').textContent = 'Поени: 0';
+		document.getElementById('goal').textContent = `Цел: ${goalScore} поени`;
+		document.getElementById('level').textContent = `Ниво: ${level}`;
+		document.getElementById('timer').textContent = timeLeft;
+		displayQuestion();
+		clearInterval(timerInterval);
+		timerInterval = setInterval(updateTimer, 1000);
+	}
+
+	function levelUp() {
+		level++;
+		goalScore = Math.min(score + 10, score + 30);
+		timeLeft = Math.max(60 - (level - 1) * 5, 30);
+		document.getElementById('level').textContent = `Ниво: ${level}`;
+		document.getElementById('goal').textContent = `Цел: ${goalScore} поени`;
+		document.getElementById('timer').textContent = timeLeft;
+		clearInterval(timerInterval);
+		timerInterval = setInterval(updateTimer, 1000);
+
+		// Remove existing confetti
+		const existingConfetti = document.querySelector('.confetti-container');
+		if (existingConfetti) {
+			existingConfetti.remove();
+		}
+	}
+
+	function createConfetti() {
+		const confettiContainer = document.createElement('div');
+		confettiContainer.className = 'confetti-container';
+		document.getElementById('game-container').appendChild(confettiContainer);
+
+		const confettiColors = ['#f2d74e', '#95c3de', '#ff9a91', '#f2bae8', '#ce65b3'];
+		for (let i = 0; i < 50; i++) {
+			const confetti = document.createElement('div');
+			confetti.className = 'confetti';
+			confetti.style.left = `${Math.random() * 100}%`;
+			confetti.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+			confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+			confetti.style.animationDelay = `${Math.random() * 5}s`;
+			confettiContainer.appendChild(confetti);
+		}
+
+		setTimeout(() => {
+			confettiContainer.remove();
+		}, 5000);
+	}
+
+	function shareResult() {
+		const resultText = `Јас достигнав ниво ${level} со ${score} поени во играта "Научи англиски"!`;
+		navigator.clipboard.writeText(resultText).then(() => {
+			alert('Резултатот е копиран во клипбордот!');
+		}, (err) => {
+			console.error('Грешка при копирање на резултатот: ', err);
+			alert('Се случи грешка при копирање на резултатот. Ве молиме обидете се повторно.');
+		});
+	}
+
+	function updatePersonalRecords() {
+		personalRecords.unshift({level, score});
+		personalRecords = personalRecords.slice(0, 3); // Keep only the last 3 records
+		localStorage.setItem('personalRecords', JSON.stringify(personalRecords));
+	}
+
+	function displayPersonalRecords() {
+		const recordsList = document.getElementById('records-list');
+		recordsList.innerHTML = '';
+		personalRecords.forEach((record, index) => {
+			const recordItem = document.createElement('div');
+			recordItem.className = 'record-item';
+			recordItem.textContent = `${index + 1}. Ниво ${record.level} - ${record.score} поени`;
+			recordsList.appendChild(recordItem);
+		});
+	}
+
+	// Load personal records from localStorage
+	const savedRecords = localStorage.getItem('personalRecords');
+	if (savedRecords) {
+		personalRecords = JSON.parse(savedRecords);
+	}
+
+	displayQuestion();
+</script>
+</body>
+</html>
